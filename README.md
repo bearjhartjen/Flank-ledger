@@ -43,8 +43,25 @@ Then finish the GitHub side:
 
 1. Create the repository on GitHub (see the privacy note below).
 2. Add the remote: `git remote add origin <your-repo-url>`.
-3. Enable Pages: **Settings → Pages → Source: GitHub Actions** (only needed if
-   publishing through GitHub Pages — see the privacy note).
+3. Push: `git push -u origin main`.
+
+That's it for the basic setup. The site is published by one of three
+workflows, and you only need to enable one of them:
+
+| Workflow | How it publishes | Extra setup |
+| --- | --- | --- |
+| `gh-pages.yml` | Pushes the site to a `gh-pages` branch, which GitHub serves automatically | **None** — works on a fresh repo |
+| `pages.yml` | The official GitHub Pages deployment | Settings → Pages → Source → **GitHub Actions** |
+| `cloudflare.yml` | Cloudflare Pages | Two repository secrets — see `CLOUDFLARE.md` |
+
+`gh-pages.yml` is the zero-setup default. The other two are there if you
+prefer them.
+
+### If a workflow fails
+
+Neither `pages.yml` nor `cloudflare.yml` fails the build when its one-time
+setup is missing. They skip the publishing step and print what to do in the
+job summary, so a red X in the Actions tab always means something real.
 
 ## Building and previewing locally
 
@@ -75,8 +92,8 @@ written — without writing anything.
 | `scripts/install-hooks.sh` | Installs the git hooks. |
 | `.githooks/pre-commit` | Syncs the ledger, rebuilds `site/`, stages both. |
 | `.githooks/pre-push` | Refuses a push if the build fails. |
-| `site/` | Generated output; published to GitHub Pages. |
-| `.github/workflows/` | GitHub Actions: `pages.yml` (GitHub Pages) and `cloudflare.yml` (Cloudflare Pages). |
+| `site/` | Generated output; published by whichever workflow is enabled. |
+| `.github/workflows/` | `gh-pages.yml` (zero-setup), `pages.yml` (GitHub Pages), `cloudflare.yml` (Cloudflare Pages), `verify.yml` (CI). |
 | `assets/` | Images used by the site (e.g. the logo). |
 | `CLOUDFLARE.md` | One-time setup for the Cloudflare Pages workflow. |
 | `README.md` | This file. |
@@ -104,6 +121,8 @@ workflow** — it is the one that keeps the repo private on the free tier.
 - Note that a published site is reachable by anyone with the URL, even when
   the repository behind it is private. If that matters, treat the site URL as
   a secret, or add a password in front of it.
+- The `gh-pages` branch workflow publishes the same way and is also affected
+  by this: the **site** is public even if the repository is private.
 
 ## A note on silver
 
