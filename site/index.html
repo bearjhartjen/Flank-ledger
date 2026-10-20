@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Flank Ledger &mdash; Flamingo &amp; Cactus</title>
+<style>
+  :root{
+    --paper:#ffffff;
+    --paper2:#fbfaf7;
+    --ink:#141414;
+    --ink2:#3d3d3d;
+    --muted:#6b6b6b;
+    --faint:#8c8c8c;
+    --rule:#c9c9c9;
+    --rule2:#e3e1da;
+    --link:#0b2a8c;
+    --up:#1c6b3a;
+    --upfill:#ffffff;
+    --down:#9c1f16;
+    --gold:#8a6a12;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font:15px/1.55 Georgia,"Times New Roman",Times,serif;
+    min-width:1120px;               /* desktop only */
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:1080px;margin:0 auto;padding:26px 28px 64px}
+
+  /* ---------- masthead ---------- */
+  .masthead{text-align:center;padding:6px 0 4px}
+  .masthead img{display:block;margin:0 auto;width:96px;height:96px;object-fit:contain}
+  h1{
+    font-size:34px;font-weight:400;letter-spacing:2.5px;text-transform:uppercase;
+    margin:14px 0 2px;
+  }
+  .tagline{color:var(--muted);font-size:14px;font-style:italic;margin:0 0 18px}
+  .hr{height:2px;background:var(--ink);margin:0}
+  .hr.thin{height:1px;background:var(--rule)}
+
+  .headline{text-align:center;padding:24px 0 6px}
+  .headline .item{margin:0 auto 26px}
+  .headline .k{font-size:11px;letter-spacing:2.4px;text-transform:uppercase;color:var(--muted);font-family:"Helvetica Neue",Arial,sans-serif}
+  .headline .v{font-size:40px;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:5px}
+  .headline .v.gold{color:var(--gold)}
+  .headline .n{font-size:12.5px;color:var(--faint);font-family:"Helvetica Neue",Arial,sans-serif}
+
+  .stats{
+    text-align:center;color:var(--muted);font-size:13.5px;padding:0 0 20px;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+  }
+  .stats b{color:var(--ink2);font-weight:600}
+
+  /* ---------- chart ---------- */
+  .chartwrap{position:relative;margin:6px 0 4px}
+  svg.chart{display:block;width:100%}
+  .candle-up{fill:var(--upfill);stroke:var(--up);stroke-width:1.4}
+  .candle-dn{fill:var(--down);stroke:var(--down);stroke-width:1.4}
+  .wick{stroke:#55585c;stroke-width:1}
+  .gl{stroke:var(--rule2);stroke-width:1}
+  .avgline{stroke:#1c4fd8;stroke-width:1.6;stroke-dasharray:7 5}
+  .mavg{fill:none;stroke:#1c4fd8;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+  .mavgdot{fill:#1c4fd8}
+  .avglbl{font:11px "Helvetica Neue",Arial,sans-serif;fill:#1c4fd8;font-weight:600}
+  .axlbl{font:11px "Helvetica Neue",Arial,sans-serif;fill:var(--muted)}
+  .axlbl.b{font-weight:600;fill:var(--ink)}
+  .tooltip{
+    position:absolute;pointer-events:none;background:#fff;border:1px solid var(--ink);
+    padding:8px 11px;font:12.5px/1.5 "Helvetica Neue",Arial,sans-serif;color:var(--ink);
+    box-shadow:2px 2px 0 rgba(0,0,0,.14);min-width:168px;opacity:0;transition:opacity .08s;
+  }
+  .tooltip .tt-t{font-weight:700;letter-spacing:.4px;text-transform:uppercase;font-size:11px;color:var(--muted);margin-bottom:4px}
+  .tooltip .tt-r{display:flex;justify-content:space-between;gap:18px}
+  .tooltip .tt-r span:last-child{font-variant-numeric:tabular-nums}
+  .caption{font:12.5px "Helvetica Neue",Arial,sans-serif;color:var(--faint);text-align:center;margin:6px 0 26px}
+  .note{
+    font:12.5px/1.5 "Helvetica Neue",Arial,sans-serif;color:var(--muted);
+    text-align:center;margin:2px auto 14px;max-width:760px;
+    border-left:2px solid var(--rule);padding-left:12px;
+  }
+  .note b{color:var(--ink2)}
+  .legend{
+    display:flex;gap:22px;justify-content:center;
+    font:12px "Helvetica Neue",Arial,sans-serif;color:var(--muted);margin:0 0 20px;
+  }
+  .legend .sw{
+    display:inline-block;width:11px;height:11px;border-radius:2px;
+    margin-right:6px;vertical-align:-1px;
+  }
+
+  /* ---------- toolbar ---------- */
+  .toolbar{display:flex;gap:10px;align-items:center;margin:0 0 12px;flex-wrap:wrap}
+  input[type=search],select{
+    font:14px Georgia,serif;color:var(--ink);background:#fff;
+    border:1px solid var(--rule);border-radius:2px;padding:7px 10px;
+  }
+  input[type=search]{min-width:300px}
+  input[type=search]:focus,select:focus{outline:2px solid var(--ink);outline-offset:-1px}
+  .btn{
+    font:13px "Helvetica Neue",Arial,sans-serif;letter-spacing:.6px;text-transform:uppercase;
+    background:#fff;color:var(--ink);border:1px solid var(--ink);border-radius:2px;
+    padding:7px 14px;cursor:pointer;
+  }
+  .btn:hover{background:var(--ink);color:#fff}
+  .count{margin-left:auto;font:13px "Helvetica Neue",Arial,sans-serif;color:var(--muted)}
+
+  /* ---------- table ---------- */
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  thead th{
+    font:11.5px "Helvetica Neue",Arial,sans-serif;letter-spacing:1.3px;text-transform:uppercase;
+    color:var(--ink);text-align:left;padding:8px 10px;border-bottom:2px solid var(--ink);
+    white-space:nowrap;
+  }
+  thead th.r{text-align:right}
+  tbody td{padding:8px 10px;border-bottom:1px solid var(--rule2);vertical-align:top}
+  tbody tr:hover{background:var(--paper2)}
+  td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.n{color:var(--faint);text-align:right;width:44px;font-variant-numeric:tabular-nums}
+  td.date{white-space:nowrap;color:var(--muted)}
+  td.silver{white-space:nowrap;color:var(--gold)}
+  td.notes{color:var(--ink2);font-size:13.5px;line-height:1.45}
+  .with{color:var(--down)}
+  .dep{color:var(--up)}
+  .bal{font-weight:600}
+  .empty-msg{color:var(--muted);text-align:center;padding:26px;font-style:italic}
+
+  /* ---------- prose pages (about / 404) ---------- */
+  .prose{max-width:760px;margin:8px auto 0;font-size:15px;line-height:1.65}
+  .prose h2{
+    font:600 12px "Helvetica Neue",Arial,sans-serif;letter-spacing:1.6px;
+    text-transform:uppercase;color:var(--ink2);margin:26px 0 6px;
+  }
+  .prose p{margin:0 0 12px;color:var(--ink2)}
+  .prose code{
+    font:12.5px Consolas,"Liberation Mono",Menlo,monospace;
+    background:var(--paper2);border:1px solid var(--rule2);border-radius:2px;padding:1px 4px;
+  }
+  .nf{max-width:640px;margin:38px auto 0;text-align:center}
+  .nf .big{
+    font-size:30px;font-weight:400;letter-spacing:2px;text-transform:uppercase;
+    margin:0 0 10px;
+  }
+  .nf p{color:var(--ink2);margin:0 0 14px}
+
+  footer{
+    margin-top:30px;padding-top:14px;border-top:1px solid var(--rule);
+    font:12.5px "Helvetica Neue",Arial,sans-serif;color:var(--faint);text-align:center;
+  }
+  footer a{color:var(--link)}
+
+  @media print{
+    body{background:#fff;min-width:0;font-size:11pt}
+    .page{max-width:none;padding:0}
+    .toolbar,.chartwrap,.caption,.btn{display:none}
+    thead th{position:static}
+    tbody tr{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="masthead">
+    <img src="data:image/png;base64,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" alt="Flamingo and Cactus">
+    <h1>The Flank Ledger</h1>
+    <p class="tagline">Flamingo &amp; Cactus Group</p>
+  </div>
+  <div class="hr"></div>
+
+  <div class="headline">
+    <div class="item">
+      <div class="k">Current Balance</div>
+      <div class="v" id="h-balance">&mdash;</div>
+      <div class="n" id="h-balance-note"></div>
+    </div>
+    <div class="item last">
+      <div class="k">Silver Holdings</div>
+      <div class="v gold" id="h-silver">&mdash;</div>
+      <div class="n">physical reserve</div>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <div class="hr thin"></div>
+
+  <div class="chartwrap">
+    <svg class="chart" id="chart"></svg>
+    <div class="tooltip" id="tip"></div>
+  </div>
+  <p class="note"><b>Note:</b> this graph tracks <b>US dollar holdings</b> only. The silver holdings
+  (<span id="note-silver">200g, 2.6oz</span>) are physical assets held separately &mdash; they are not
+  valued in dollars, and are <b>not</b> included in the plotted line, the moving average, or the totals above.</p>
+  <p class="caption">
+    One candle per transaction &mdash; hollow for a transaction that left the balance higher, solid for one that left it lower.
+    Hover a candle for detail.
+  </p>
+  <div class="legend">
+    <span><span class="sw" style="background:#ffffff;border:1.4px solid var(--up)"></span>Balance rose</span>
+    <span><span class="sw" style="background:var(--down)"></span>Balance fell</span>
+    <span><span class="sw" style="height:0;border-top:2px solid #1c4fd8;border-radius:0;width:18px"></span>Moving average (&nbsp;9&nbsp;transactions)</span>
+  </div>
+  <div class="hr thin"></div>
+
+  <div style="height:22px"></div>
+
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="Search notes, dates, amounts&hellip;">
+    <select id="filter">
+      <option value="all">All transactions</option>
+      <option value="in">Deposits only</option>
+      <option value="out">Withdrawals only</option>
+      <option value="2026">Year 2026</option>
+      <option value="2025">Year 2025</option>
+    </select>
+    <button class="btn" id="print">Print</button>
+    <span class="count" id="count">63 shown of 63</span>
+  </div>
+
+  <table>
+    <thead>
+       <tr>
+         <th class="n">#</th>
+         <th>Date</th>
+         <th class="r">Withdraw</th>
+         <th class="r">Deposit</th>
+         <th class="r">Balance</th>
+         <th>Silver</th>
+         <th>Notes</th>
+       </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <footer>
+    Generated from <code>The Flank.md</code> by <code>scripts/build.py</code> &mdash; a read-only site.<br>
+    Edit the Markdown and re-run the build to refresh.
+  </footer>
+</div>
+
+<script>
+const TX = [{"n":1,"withdraw":166.3,"withdrawText":"$166.30","deposit":0.0,"depositText":"$0.00","balance":4.78,"balanceText":"$4.78","silver":"","notes":"This withdrawal was from EBay to work on unit 1 of the solar generator box. It was approved by Bear J. Hartjen.","date":"2025-10-03","dateText":"Oct 03, 2025","empty":false},{"n":2,"withdraw":0.0,"withdrawText":"$0.00","deposit":578.4,"depositText":"$578.40","balance":578.4,"balanceText":"$578.40","silver":"","notes":"This deposit was a donation by Bear J. Hartjen, and was authorized by Bear J. Hartjen.","date":"2025-10-06","dateText":"Oct 06, 2025","empty":false},{"n":3,"withdraw":323.5,"withdrawText":"$323.50","deposit":0.0,"depositText":"$0.00","balance":254.9,"balanceText":"$254.90","silver":"","notes":"This withdrawal was from Amazon to work on Unit 1 and 2 of the solar generator box. It was approved by Bear J. Hartjen.","date":"2025-10-06","dateText":"Oct 06, 2025","empty":false},{"n":4,"withdraw":50.14,"withdrawText":"$50.14","deposit":0.0,"depositText":"$0.00","balance":204.76,"balanceText":"$204.76","silver":"","notes":"This withdrawal was from Amazon to work on Unit 1 and 2 of the solar generator box. It was approved by Bear J. Hartjen.","date":"2025-10-06","dateText":"Oct 06, 2025","empty":false},{"n":5,"withdraw":33.68,"withdrawText":"$33.68","deposit":0.0,"depositText":"$0.00","balance":171.08,"balanceText":"$171.08","silver":"","notes":"This withdrawal was from Amazon to work on Unit 1 and 2 of the solar generator box. It was approved by Bear J. Hartjen.","date":"2025-10-06","dateText":"Oct 06, 2025","empty":false},{"n":6,"withdraw":0.0,"withdrawText":"$0.00","deposit":400.0,"depositText":"$400.00","balance":404.78,"balanceText":"$404.78","silver":"","notes":"This deposit was made from Nick purchasing unit 1 of the solar box. This deposit was approved by Bear J. Hartjen.","date":"2025-10-19","dateText":"Oct 19, 2025","empty":false},{"n":7,"withdraw":71.99,"withdrawText":"$71.99","deposit":0.0,"depositText":"$0.00","balance":332.79,"balanceText":"$332.79","silver":"","notes":"This withdrawal was made from Amazon purchasing the finishing components to unit two. This transaction was approved by Bear J. Hartjen.","date":"2025-10-24","dateText":"Oct 24, 2025","empty":false},{"n":8,"withdraw":71.6,"withdrawText":"$71.60","deposit":0.0,"depositText":"$0.00","balance":261.19,"balanceText":"$261.19","silver":"","notes":"This purchase from EBay was made for energy storage on unit 2. This withdrawal was approved by Bear J. Hartjen.","date":"2025-10-24","dateText":"Oct 24, 2025","empty":false},{"n":9,"withdraw":0.0,"withdrawText":"$0.00","deposit":38.92,"depositText":"$38.92","balance":300.11,"balanceText":"$300.11","silver":"","notes":"This transaction was made as a donation by Bear J. Hartjen. This deposit was approved by Bear J. Hartjen.","date":"2025-10-24","dateText":"Oct 24, 2025","empty":false},{"n":10,"withdraw":298.29,"withdrawText":"$298.29","deposit":0.0,"depositText":"$0.00","balance":1.82,"balanceText":"$1.82","silver":"","notes":"This transaction was made due to an \u201coff track mindset\u201d on the part of Bear J. Hartjen... spent all this money on random things he didn\u2019t need. This transaction was approved by Bear J. Hartjen.","date":null,"dateText":"Unknown","empty":false},{"n":11,"withdraw":0.82,"withdrawText":"$0.82","deposit":0.0,"depositText":"$0.00","balance":1.0,"balanceText":"$1.00","silver":"","notes":"The 82 cent balance was making accounting difficult as all assets were physical. This transaction was made and approved by Bear J. Hartjen.","date":"2025-11-27","dateText":"Nov 27, 2025","empty":false},{"n":12,"withdraw":0.0,"withdrawText":"$0.00","deposit":453.0,"depositText":"$453.00","balance":454.0,"balanceText":"$454.00","silver":"200g, 2.1oz","notes":"This transaction was a donation by dearest Bear J. Hartjen, some silver was included as an investment fund for the Flamingo and Cactus group.","date":"2025-12-22","dateText":"Dec 22, 2025","empty":false},{"n":13,"withdraw":0.0,"withdrawText":"$0.00","deposit":10.0,"depositText":"$10.00","balance":464.0,"balanceText":"$464.00","silver":"200g, 2.1oz","notes":"This transaction was a donation by Bear J. Hartjen. This transaction was approved by Bear J. Hartjen.","date":"2025-12-24","dateText":"Dec 24, 2025","empty":false},{"n":14,"withdraw":0.0,"withdrawText":"$0.00","deposit":50.0,"depositText":"$50.00","balance":514.0,"balanceText":"$514.00","silver":"200g, 2.1oz","notes":"This transaction was a donation by Bear J. Hartjen. This transaction was approved by Bear J. Hartjen.","date":"2026-01-04","dateText":"Jan 04, 2026","empty":false},{"n":15,"withdraw":0.0,"withdrawText":"$0.00","deposit":5.0,"depositText":"$5.00","balance":519.0,"balanceText":"$519.00","silver":"200g, 2.1oz","notes":"This transaction was a donation by Bear J. Hartjen. This transaction was approved by Bear J. Hartjen.","date":"2026-01-14","dateText":"Jan 14, 2026","empty":false},{"n":16,"withdraw":0.0,"withdrawText":"$0.00","deposit":1.0,"depositText":"$1.00","balance":520.0,"balanceText":"$520.00","silver":"200g, 2.1oz","notes":"This transaction was a donation by Bear J. Hartjen. This transaction was approved by Bear J. Hartjen.","date":"2026-01-21","dateText":"Jan 21, 2026","empty":false},{"n":17,"withdraw":0.0,"withdrawText":"$0.00","deposit":40.0,"depositText":"$40.00","balance":560.0,"balanceText":"$560.00","silver":"200g, 2.1oz","notes":"Deposit.","date":"2026-01-25","dateText":"Jan 25, 2026","empty":false},{"n":18,"withdraw":0.0,"withdrawText":"$0.00","deposit":450.0,"depositText":"$450.00","balance":1010.0,"balanceText":"$1,010.00","silver":"200g, 2.1oz","notes":"Monthly SSI portion payment provided by Joshua Hartjen (father).","date":"2026-01-31","dateText":"Jan 31, 2026","empty":false},{"n":19,"withdraw":0.0,"withdrawText":"$0.00","deposit":451.71,"depositText":"$451.71","balance":1461.71,"balanceText":"$1,461.71","silver":"200g, 2.1oz","notes":"Transaction was made and approved by Bear J. Hartjen.","date":"2026-02-21","dateText":"Feb 21, 2026","empty":false},{"n":20,"withdraw":0.0,"withdrawText":"$0.00","deposit":null,"depositText":"0.5oz silver","balance":1461.71,"balanceText":"$1,461.71","silver":"200g, 2.6oz","notes":"Deposit of half an ounce of silver.","date":"2026-02-22","dateText":"Feb 22, 2026","empty":false},{"n":21,"withdraw":0.0,"withdrawText":"$0.00","deposit":40.0,"depositText":"$40.00","balance":1501.71,"balanceText":"$1,501.71","silver":"200g, 2.6oz","notes":"Deposit.","date":"2026-02-23","dateText":"Feb 23, 2026","empty":false},{"n":22,"withdraw":0.0,"withdrawText":"$0.00","deposit":60.0,"depositText":"$60.00","balance":1561.71,"balanceText":"$1,561.71","silver":"200g, 2.6oz","notes":"This transaction was a donation from Bear J. Hartjen. Bear got this money from his aunt and uncle (Alison and Kevin) on his birthday.","date":"2026-02-25","dateText":"Feb 25, 2026","empty":false},{"n":23,"withdraw":32.09,"withdrawText":"$32.09","deposit":0.0,"depositText":"$0.00","balance":1529.62,"balanceText":"$1,529.62","silver":"200g, 2.6oz","notes":"Lowe's: Paint and caulk for Units 2 and 3. Approved by BJH.","date":"2026-02-25","dateText":"Feb 25, 2026","empty":false},{"n":24,"withdraw":0.0,"withdrawText":"$0.00","deposit":175.0,"depositText":"$175.00","balance":1704.62,"balanceText":"$1,704.62","silver":"200g, 2.6oz","notes":"Birthday donation from Joshua Hartjen (father). Approved by BJH.","date":"2026-02-25","dateText":"Feb 25, 2026","empty":false},{"n":25,"withdraw":0.0,"withdrawText":"$0.00","deposit":131.0,"depositText":"$131.00","balance":1835.62,"balanceText":"$1,835.62","silver":"200g, 2.6oz","notes":"Labor: Drywall and cleaning work for uncle's cousin.","date":"2026-03-10","dateText":"Mar 10, 2026","empty":false},{"n":26,"withdraw":0.0,"withdrawText":"$0.00","deposit":2.01,"depositText":"$2.01","balance":1837.63,"balanceText":"$1,837.63","silver":"200g, 2.6oz","notes":"Stabilization of the balance to represent Visions FCU certificate.","date":"2026-03-13","dateText":"Mar 13, 2026","empty":false},{"n":27,"withdraw":0.0,"withdrawText":"$0.00","deposit":450.0,"depositText":"$450.00","balance":2287.63,"balanceText":"$2,287.63","silver":"200g, 2.6oz","notes":"Monthly SSI portion payment provided by Joshua Hartjen (father).","date":"2026-03-18","dateText":"Mar 18, 2026","empty":false},{"n":28,"withdraw":0.0,"withdrawText":"$0.00","deposit":1.0,"depositText":"$1.00","balance":2288.63,"balanceText":"$2,288.63","silver":"200g, 2.6oz","notes":"Deposit by BJH approved by BJH.","date":"2026-04-01","dateText":"Apr 01, 2026","empty":false},{"n":29,"withdraw":0.0,"withdrawText":"$0.00","deposit":6.12,"depositText":"$6.12","balance":2294.75,"balanceText":"$2,294.75","silver":"200g, 2.6oz","notes":"Monthly interest deposit from Visions FCU. Approved by BJH.","date":"2026-04-01","dateText":"Apr 01, 2026","empty":false},{"n":30,"withdraw":0.0,"withdrawText":"$0.00","deposit":60.0,"depositText":"$60.00","balance":2354.75,"balanceText":"$2,354.75","silver":"200g, 2.6oz","notes":"Labor: Work for Mid Atlantic Stocking. Approved by Bear J. Hartjen.","date":"2026-04-07","dateText":"Apr 07, 2026","empty":false},{"n":31,"withdraw":0.0,"withdrawText":"$0.00","deposit":450.0,"depositText":"$450.00","balance":2804.75,"balanceText":"$2,804.75","silver":"200g, 2.6oz","notes":"Monthly SSI portion payment provided by Joshua Hartjen (father).","date":"2026-04-15","dateText":"Apr 15, 2026","empty":false},{"n":32,"withdraw":0.0,"withdrawText":"$0.00","deposit":7.53,"depositText":"$7.53","balance":2812.28,"balanceText":"$2,812.28","silver":"200g, 2.6oz","notes":"Interest payment from Visions FCU. Approved by Bear J. Hartjen.","date":"2026-05-01","dateText":"May 01, 2026","empty":false},{"n":33,"withdraw":0.0,"withdrawText":"$0.00","deposit":20.0,"depositText":"$20.00","balance":2832.28,"balanceText":"$2,832.28","silver":"200g, 2.6oz","notes":"Donation from Bear J. Hartjen (gift from Rylan Ramdat).","date":"2026-05-07","dateText":"May 07, 2026","empty":false},{"n":34,"withdraw":0.0,"withdrawText":"$0.00","deposit":450.0,"depositText":"$450.00","balance":3282.28,"balanceText":"$3,282.28","silver":"200g, 2.6oz","notes":"Monthly SSI portion payment provided by Joshua Hartjen (father).","date":"2026-05-25","dateText":"May 25, 2026","empty":false},{"n":35,"withdraw":50.0,"withdrawText":"$50.00","deposit":0.0,"depositText":"$0.00","balance":3232.28,"balanceText":"$3,232.28","silver":"200g, 2.6oz","notes":"This was a payment for the Owego craft fair Bear is attending.","date":"2026-05-25","dateText":"May 25, 2026","empty":false},{"n":36,"withdraw":0.0,"withdrawText":"$0.00","deposit":150.0,"depositText":"$150.00","balance":3382.28,"balanceText":"$3,382.28","silver":"200g, 2.6oz","notes":"Bear got this money from selling his Apple watch series 10 46mm to a guy named Ryan.","date":"2026-06-05","dateText":"Jun 05, 2026","empty":false},{"n":37,"withdraw":0.0,"withdrawText":"$0.00","deposit":80.0,"depositText":"$80.00","balance":3462.28,"balanceText":"$3,462.28","silver":"200g, 2.6oz","notes":"Bear got this money from selling a Honda (engine) pressure washer.","date":"2026-06-06","dateText":"Jun 06, 2026","empty":false},{"n":38,"withdraw":214.38,"withdrawText":"$214.38","deposit":0.0,"depositText":"$0.00","balance":3247.9,"balanceText":"$3,247.90","silver":"200g, 2.6oz","notes":"Bear spent this money on a new Lenovo Thinkpad T14 Gen2, this is for Bear's work on the Lamoka project and other misc tasks.","date":"2026-06-06","dateText":"Jun 06, 2026","empty":false},{"n":39,"withdraw":0.0,"withdrawText":"$0.00","deposit":50.0,"depositText":"$50.00","balance":3297.9,"balanceText":"$3,297.90","silver":"200g, 2.6oz","notes":"This money was from Bear doing work for Anne Hartjen (his grandma) at her cottage in Palmyra NY.","date":"2026-06-14","dateText":"Jun 14, 2026","empty":false},{"n":40,"withdraw":0.0,"withdrawText":"$0.00","deposit":450.0,"depositText":"$450.00","balance":3747.9,"balanceText":"$3,747.90","silver":"200g, 2.6oz","notes":"Monthly SSI portion payment provided by Joshua Hartjen (father). A portion of this money will be spent on The Lamoka1 for development and testing to make a cheap MVP Lamoka1 by the craft fair.","date":"2026-06-24","dateText":"Jun 24, 2026","empty":false},{"n":41,"withdraw":13.78,"withdrawText":"$13.78","deposit":0.0,"depositText":"$0.00","balance":3734.12,"balanceText":"$3,734.12","silver":"200g, 2.6oz","notes":"This was a purchase of a wireless mouse for Bear's laptop as the trackpad on the top was having issues. Bear thought of it as a cheap simple fix. The mouse (and trackpad) were bought at Walmart Supercenter in Cobleskill NY. The mouse was really needed to keep making progress on the Lamoka1.","date":"2026-06-28","dateText":"Jun 28, 2026","empty":false},{"n":42,"withdraw":0.0,"withdrawText":"$0.00","deposit":9.58,"depositText":"$9.58","balance":3743.7,"balanceText":"$3,743.70","silver":"200g, 2.6oz","notes":"This was an interest payment from Visions FCU for the month.","date":"2026-06-30","dateText":"Jun 30, 2026","empty":false},{"n":43,"withdraw":5.0,"withdrawText":"$5.00","deposit":0.0,"depositText":"$0.00","balance":3738.7,"balanceText":"$3,738.70","silver":"200g, 2.6oz","notes":"This was a donation from BJH to the Wikimedia Foundation.","date":"2026-07-12","dateText":"Jul 12, 2026","empty":false},{"n":44,"withdraw":0.0,"withdrawText":"$0.00","deposit":450.0,"depositText":"$450.00","balance":4188.7,"balanceText":"$4,188.70","silver":"200g, 2.6oz","notes":"Monthly SSI portion payment provided by Joshua Hartjen (father).","date":"2026-07-15","dateText":"Jul 15, 2026","empty":false},{"n":45,"withdraw":45.92,"withdrawText":"$45.92","deposit":0.0,"depositText":"$0.00","balance":4142.78,"balanceText":"$4,142.78","silver":"200g, 2.6oz","notes":"This went to PCBway to order the Lamoka1-DEV-Brain.","date":"2026-07-16","dateText":"Jul 16, 2026","empty":false},{"n":46,"withdraw":0.37,"withdrawText":"$0.37","deposit":0.0,"depositText":"$0.00","balance":4142.41,"balanceText":"$4,142.41","silver":"200g, 2.6oz","notes":"This was an international routing fee from PCBway.","date":"2026-07-16","dateText":"Jul 16, 2026","empty":false},{"n":47,"withdraw":0.0,"withdrawText":"$0.00","deposit":4.74,"depositText":"$4.74","balance":4147.15,"balanceText":"$4,147.15","silver":"200g, 2.6oz","notes":"This was a deposit from BJH, had some coins laying around.","date":"2026-07-30","dateText":"Jul 30, 2026","empty":false},{"n":48,"withdraw":0.0,"withdrawText":"$0.00","deposit":300.0,"depositText":"$300.00","balance":4447.15,"balanceText":"$4,447.15","silver":"200g, 2.6oz","notes":"$100 came from Alex Weisz when Bear did some manual work on a deck of Alex's apartments (Alex is Bear's mom's cousin). The other $200 is from Ralph Scott Haner when Bear did some manual work on Scott's roof.","date":"2026-08-01","dateText":"Aug 01, 2026","empty":false},{"n":49,"withdraw":7.0,"withdrawText":"$7.00","deposit":0.0,"depositText":"$0.00","balance":4440.15,"balanceText":"$4,440.15","silver":"200g, 2.6oz","notes":"Bear wanted some bubble tea so he bought it from Confection Connection.","date":"2026-08-01","dateText":"Aug 01, 2026","empty":false},{"n":50,"withdraw":null,"withdrawText":"","deposit":627.32,"depositText":"$627.32","balance":5067.47,"balanceText":"$5,067.47","silver":"200g, 2.6oz","notes":"This was an adjustment to increase the amount to the actual total. Bear was not feeling well and thus didnt report things for a little bit, this value however is acurate.  approved by BJH. Bear is currently working on the Lamoka1 inverter section, and getting ready to present it at the rotary craft fair, some business cards and similar will unfortuantly need to be purchased for the fair.","date":"2026-09-15","dateText":"Sep 15, 2026","empty":false},{"n":51,"withdraw":31.3,"withdrawText":"$31.30","deposit":500.0,"depositText":"$500.00","balance":5536.17,"balanceText":"$5,536.17","silver":"200g, 2.6oz","notes":"This was the purchase for the PWM Noctua fan for the Lamoka1/2, the opencode go subscription ($10) and then a normal monthly deposit.","date":"2026-09-28","dateText":"Sep 28, 2026","empty":false},{"n":52,"withdraw":0.0,"withdrawText":"$0","deposit":14.91,"depositText":"$14.91","balance":5551.08,"balanceText":"$5,551.08","silver":"200g, 2.6oz","notes":"This was a monthly interest payment by Visions FCU on the deep savings account.","date":"2026-10-01","dateText":"Oct 01, 2026","empty":false},{"n":53,"withdraw":44.26,"withdrawText":"$44.26","deposit":null,"depositText":"","balance":5506.82,"balanceText":"$5,506.82","silver":"200g, 2.6oz","notes":"This was a purchase on Bears part buying a blanket for a friend (Delaynie Smith) lol, its alright, sometimes happiness comes before finance, it'll all be okay.","date":"2026-10-03","dateText":"Oct 03, 2026","empty":false},{"n":54,"withdraw":0.0,"withdrawText":"$0.00","deposit":50.0,"depositText":"$50.00","balance":5556.82,"balanceText":"$5,556.82","silver":"200g, 2.6oz","notes":"This deposit was from Joshua Hartjen for the homecoming dance and similar. This deposit was approved by Bear J. Hartjen. Bear intends to give a portion of money back to Joshua.","date":"2026-10-04","dateText":"Oct 04, 2026","empty":false},{"n":55,"withdraw":10.0,"withdrawText":"$10.00","deposit":0.0,"depositText":"$0.00","balance":5546.82,"balanceText":"$5,546.82","silver":"200g, 2.6oz","notes":"This withdrawal was for two homecoming dance tickets, one for Bear and one for Delaynie. This withdrawal was approved by Bear J. Hartjen.","date":"2026-10-05","dateText":"Oct 05, 2026","empty":false},{"n":56,"withdraw":10.93,"withdrawText":"$10.93","deposit":0.0,"depositText":"$0.00","balance":5535.89,"balanceText":"$5,535.89","silver":"200g, 2.6oz","notes":"This withdrawal was for misc snack items at CVS for Delaynie. This withdrawal was approved by Bear J. Hartjen.","date":"2026-10-09","dateText":"Oct 09, 2026","empty":false},{"n":57,"withdraw":0.0,"withdrawText":"$0.00","deposit":21.3,"depositText":"$21.30","balance":5557.19,"balanceText":"$5,557.19","silver":"200g, 2.6oz","notes":"This was a refunded amount from eBay for the purchase of a Noctua fan that was not as shown in listing. This deposit was approved by Bear J. Hartjen.","date":"2026-10-07","dateText":"Oct 07, 2026","empty":false},{"n":58,"withdraw":4.07,"withdrawText":"$4.07","deposit":0.0,"depositText":"$0.00","balance":5553.12,"balanceText":"$5,553.12","silver":"200g, 2.6oz","notes":"This withdrawal was the remaining homecoming dance money spent at the dance. This withdrawal was approved by Bear J. Hartjen.","date":"2026-10-10","dateText":"Oct 10, 2026","empty":false},{"n":59,"withdraw":25.0,"withdrawText":"$25.00","deposit":0.0,"depositText":"$0.00","balance":5528.12,"balanceText":"$5,528.12","silver":"200g, 2.6oz","notes":"This withdrawal was Bear giving $25 back to Joshua Hartjen of the money given for the homecoming dance. This withdrawal was approved by Bear J. Hartjen.","date":"2026-10-11","dateText":"Oct 11, 2026","empty":false},{"n":60,"withdraw":0.0,"withdrawText":"$0.00","deposit":20.02,"depositText":"$20.02","balance":5548.14,"balanceText":"$5,548.14","silver":"200g, 2.6oz","notes":"This deposit was from Tony Parella (SVRA vintage-racing CEO). Approved by Bear J. Hartjen.","date":"2026-10-13","dateText":"Oct 13, 2026","empty":false},{"n":61,"withdraw":0.0,"withdrawText":"$0.00","deposit":5.0,"depositText":"$5.00","balance":5553.14,"balanceText":"$5,553.14","silver":"200g, 2.6oz","notes":"This deposit was from Anne Hartjen (Bear's grandma) for doing misc work around her cottage in Palmyra NY. This deposit was approved by Bear J. Hartjen.","date":"2026-10-17","dateText":"Oct 17, 2026","empty":false},{"n":62,"withdraw":0.0,"withdrawText":"$0.00","deposit":10.0,"depositText":"$10.00","balance":5563.14,"balanceText":"$5,563.14","silver":"200g, 2.6oz","notes":"This deposit was from Anne Hartjen (Bear's grandma) for doing more misc work around her cottage in Palmyra NY. This deposit was approved by Bear J. Hartjen.","date":"2026-10-18","dateText":"Oct 18, 2026","empty":false},{"n":63,"withdraw":1.0,"withdrawText":"$1.00","deposit":0.0,"depositText":"$0.00","balance":5562.14,"balanceText":"$5,562.14","silver":"200g, 2.6oz","notes":"This withdrawal was for one month of Spotify Premium, bought at the $1 promotional rate. This withdrawal was approved by Bear J. Hartjen.","date":"2026-10-19","dateText":"Oct 19, 2026","empty":false}];
+
+const num = v => typeof v === "number" ? v : null;
+const money = n => n === null || n === undefined
+  ? "&mdash;"
+  : "$" + n.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ------------------------------------------------------------------ summary */
+const totals = TX.reduce((a,t)=>{
+  a.deposits   += num(t.deposit)  || 0;
+  a.withdrawals+= num(t.withdraw) || 0;
+  if (t.balance !== null) a.lastBalance = t.balance;
+  if (t.silver) a.silver = t.silver;
+  a.count++;
+  return a;
+},{deposits:0, withdrawals:0, lastBalance:null, silver:"", count:0});
+
+const dated = TX.filter(t => t.date);
+const lastTx = TX[TX.length-1];
+
+document.getElementById("h-balance").textContent = money(totals.lastBalance);
+document.getElementById("h-balance-note").textContent =
+  "as of " + (lastTx.dateText || "the last entry");
+document.getElementById("h-silver").textContent = totals.silver || "&mdash;";
+document.getElementById("note-silver").textContent = totals.silver || "none on record";
+
+document.getElementById("stats").innerHTML =
+  `<b>${totals.count}</b> transactions &nbsp;&middot;&nbsp; ` +
+  (dated.length ? dated[0].dateText + " &ndash; " + dated[dated.length-1].dateText : "undated") +
+  ` &nbsp;&middot;&nbsp; deposits <b>${money(totals.deposits)}</b>` +
+  ` &nbsp;&middot;&nbsp; withdrawals <b>${money(totals.withdrawals)}</b>`;
+
+/* ------------------------------------------------------------------ candles */
+function buildCandles(){
+  /* One candle per transaction.
+     open  = the balance carried in from the previous transaction
+     close = the new balance after this one
+     high  = max(open, close), low = min(open, close)
+     The ledger itself has two places where the running balance jumps by more
+     than the recorded deposit/withdrawal; those candles get flagged. */
+  const out = [];
+  let prevClose = null;
+  for (const t of TX){
+    if (t.balance === null) continue;
+    const dep = num(t.deposit)  || 0;
+    const wd  = num(t.withdraw) || 0;
+    const implied = +(t.balance - (dep - wd)).toFixed(2);
+    const open  = prevClose === null ? implied : prevClose;
+    const close = t.balance;
+    const gap   = +(close - open - (dep - wd)).toFixed(2);
+    out.push({
+      n: t.n, label: "#" + t.n, date: t.dateText || "Unknown",
+      open, close,
+      high: Math.max(open, close), low: Math.min(open, close),
+      deposits: dep, withdrawals: wd,
+      gap: Math.abs(gap) > 0.005 ? gap : 0
+    });
+    prevClose = close;
+  }
+  return out;
+}
+
+const CANDLES = buildCandles();
+
+/* window (in transactions) for the blue moving-average line */
+const MA_WINDOW = 9;
+
+/* moving average of the running balance, per transaction */
+const MA = CANDLES.map((c,i)=>{
+  const from = Math.max(0, i-MA_WINDOW+1);
+  let s = 0, n = 0;
+  for (let k=from;k<=i;k++){ s += CANDLES[k].close; n++; }
+  return s/n;
+});
+
+(function(){
+  const svg = document.getElementById("chart");
+  const tip = document.getElementById("tip");
+  if (!CANDLES.length){ svg.innerHTML = '<text x="10" y="30" class="axlbl">No data</text>'; return; }
+
+  const H = 330, PL = 74, PR = 18, PT = 14, PB = 34;
+  let lo = Infinity, hi = -Infinity;
+  CANDLES.forEach(c=>{ lo = Math.min(lo,c.low); hi = Math.max(hi,c.high); });
+  const pad = (hi-lo)*0.08 || 10;
+  lo = Math.max(0, lo-pad); hi = hi+pad;
+
+  function draw(){
+    const W = Math.max(720, svg.parentElement.clientWidth);
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.setAttribute("width", W);
+    svg.setAttribute("height", H);
+    svg.style.height = H+"px";
+
+    const plotW = W - PL - PR;
+    const step  = plotW / CANDLES.length;
+    const bw    = Math.max(3, Math.min(22, step*0.6));
+    const cx    = i => PL + step*i + step/2;
+    const y     = v => PT + (1-(v-lo)/(hi-lo))*(H-PT-PB);
+
+    let grid = "", labs = "";
+    for (let i=0;i<=4;i++){
+      const v = lo + (hi-lo)*i/4, yy = y(v);
+      grid += `<line class="gl" x1="${PL}" y1="${yy.toFixed(1)}" x2="${W-PR}" y2="${yy.toFixed(1)}"/>`;
+      labs += `<text class="axlbl" x="${PL-9}" y="${(yy+4).toFixed(1)}" text-anchor="end">${"$"+Math.round(v).toLocaleString()}</text>`;
+    }
+
+    let xlabels = "", body = "";
+    CANDLES.forEach((c,i)=>{
+      const up = c.close >= c.open;
+      const x  = cx(i);
+      const yt = y(Math.max(c.open,c.close)), yb = y(Math.min(c.open,c.close));
+      const h  = Math.max(1.5, yb-yt);
+      body += `<line class="wick" x1="${x.toFixed(1)}" y1="${y(c.high).toFixed(1)}" x2="${x.toFixed(1)}" y2="${y(c.low).toFixed(1)}"/>`;
+      body += `<rect class="${up?"candle-up":"candle-dn"}" x="${(x-bw/2).toFixed(1)}" y="${yt.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}"/>`;
+      body += `<rect class="hit" data-i="${i}" x="${(x-step/2).toFixed(1)}" y="${PT}" width="${step.toFixed(1)}" height="${H-PT-PB}" fill="transparent"/>`;
+    });
+
+    /* label every Nth candle with its transaction number */
+    const every = Math.max(1, Math.ceil(CANDLES.length/14));
+    CANDLES.forEach((c,i)=>{
+      if (i % every === 0 || i === CANDLES.length-1)
+        xlabels += `<text class="axlbl" x="${cx(i).toFixed(1)}" y="${H-10}" text-anchor="middle">${c.label}</text>`;
+    });
+
+    /* blue moving-average line following the value of the holdings */
+    const maPath = MA.map((v,i)=>({ i, x: cx(i), v }));
+    const maD = maPath.map((p,i)=>(i?"L":"M")+p.x.toFixed(1)+" "+y(p.v).toFixed(1)).join(" ");
+    const lastMa = maPath[maPath.length-1];
+    const maLine =
+      `<path class="mavg" d="${maD}"/>` +
+      `<circle class="mavgdot" cx="${lastMa.x.toFixed(1)}" cy="${y(lastMa.v).toFixed(1)}" r="3"/>` +
+      `<text class="avglbl" x="${lastMa.x.toFixed(1)}" y="${(y(lastMa.v)-9).toFixed(1)}" text-anchor="end">Moving avg ${money(lastMa.v)}</text>`;
+
+    svg.innerHTML = grid + labs + body + maLine + xlabels;
+
+    /* hover tooltips */
+    const hits = svg.querySelectorAll(".hit");
+    hits.forEach(el=>{
+      el.addEventListener("mouseenter", ()=>{
+        const c = CANDLES[+el.dataset.i];
+        const up = c.close >= c.open;
+        tip.innerHTML =
+          `<div class="tt-t">Transaction ${c.n} &mdash; ${c.date}</div>` +
+          `<div class="tt-r"><span>Opened at</span><span>${money(c.open)}</span></div>` +
+          `<div class="tt-r"><span>Closed at</span><span>${money(c.close)}</span></div>` +
+          `<div class="tt-r"><span>Change</span><span style="color:${up?"var(--up)":"var(--down)"}">${(c.close-c.open>=0?"+":"")+money(c.close-c.open)}</span></div>` +
+          `<div class="tt-r"><span>Moving avg</span><span style="color:#1c4fd8">${money(MA[+el.dataset.i])}</span></div>` +
+          (c.deposits  ? `<div class="tt-r"><span>Deposit</span><span>${money(c.deposits)}</span></div>`  : "") +
+          (c.withdrawals?`<div class="tt-r"><span>Withdrawal</span><span>${money(c.withdrawals)}</span></div>`:"") +
+          (c.gap ? `<div class="tt-r"><span>Unrecorded</span><span>${money(c.gap)}</span></div>` : "");
+        const svgRect = svg.getBoundingClientRect();
+        const wrapRect = svg.parentElement.getBoundingClientRect();
+        const px = svgRect.left - wrapRect.left + cx(+el.dataset.i);
+        const py = svgRect.top  - wrapRect.top  + y(c.high);
+        tip.style.opacity = "1";
+        const tw = tip.offsetWidth;
+        tip.style.left = Math.max(0, Math.min(wrapRect.width - tw, px - tw/2)) + "px";
+        tip.style.top  = Math.max(0, py - tip.offsetHeight - 10) + "px";
+      });
+    });
+    svg.addEventListener("mouseleave", ()=>{ tip.style.opacity = "0"; });
+  }
+
+  draw();
+  let t;
+  window.addEventListener("resize", ()=>{ clearTimeout(t); t = setTimeout(draw,120); });
+})();
+
+/* ------------------------------------------------------------------ table */
+const q = document.getElementById("q");
+const filter = document.getElementById("filter");
+const rows = document.getElementById("rows");
+const count = document.getElementById("count");
+
+function visible(){
+  const term = q.value.trim().toLowerCase();
+  const f = filter.value;
+  return TX.filter(t=>{
+    if (f==="in"  && num(t.deposit)  === null) return false;
+    if (f==="out" && num(t.withdraw) === null) return false;
+    if ((f==="2025" || f==="2026") && !(t.date && t.date.startsWith(f))) return false;
+    if (term){
+      const hay = [t.n,t.dateText,t.notes,t.silver,t.withdrawText,t.depositText,t.balanceText]
+                  .join(" ").toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  }).slice().reverse();          /* newest first */
+}
+
+function render(){
+  const v = visible();
+  count.textContent = v.length + " shown of " + TX.length;
+  if (!v.length){
+    rows.innerHTML = '<tr><td colspan="7" class="empty-msg">No transactions match.</td></tr>';
+    return;
+  }
+  rows.innerHTML = v.map(t=>{
+    const w = num(t.withdraw), d = num(t.deposit);
+    const wCell = w === null
+      ? (t.withdrawText ? '<span class="with">' + esc(t.withdrawText) + "</span>" : "&mdash;")
+      : '<span class="with">' + money(w) + "</span>";
+    const dCell = d === null
+      ? (t.depositText ? '<span style="color:var(--gold)">' + esc(t.depositText) + "</span>" : "&mdash;")
+      : '<span class="dep">' + money(d) + "</span>";
+    return "<tr>"
+      + '<td class="n">' + t.n + "</td>"
+      + '<td class="date">' + esc(t.dateText || "—") + "</td>"
+      + '<td class="r">' + wCell + "</td>"
+      + '<td class="r">' + dCell + "</td>"
+      + '<td class="r bal">' + money(t.balance) + "</td>"
+      + '<td class="silver">' + esc(t.silver || "—") + "</td>"
+      + '<td class="notes">' + esc(t.notes || "") + "</td>"
+      + "</tr>";
+  }).join("");
+}
+
+q.addEventListener("input", render);
+filter.addEventListener("change", render);
+document.getElementById("print").addEventListener("click", ()=>window.print());
+render();
+</script>
+</body>
+</html>
