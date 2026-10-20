@@ -20,6 +20,10 @@ jobs:
   build:
     name: Build site
     runs-on: ubuntu-latest
+    outputs:
+      pages_enabled: ${{ steps.pagescheck.outputs.enabled }}
+      build_type: ${{ steps.pagescheck.outputs.build_type }}
+      source_branch: ${{ steps.pagescheck.outputs.source_branch }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,22 +44,19 @@ jobs:
         with:
           path: site
 
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: build
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Check whether GitHub Pages is enabled
+      # This check lives in the build job on purpose. The deploy job runs
+      # inside the `github-pages` environment, and that environment can carry
+      # a branch policy that rejects the whole job before a single step
+      # runs. Deciding here means a repository that publishes from a branch
+      # skips the deploy cleanly instead of failing on the gate.
+      - name: Check the GitHub Pages setup
         id: pagescheck
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
           set -uo pipefail
+
           # The /pages endpoint is not readable anonymously, so ask the repos
           # endpoint for the has_pages flag instead, which is accurate for
           # public repositories and carries the right permission here.
@@ -66,39 +67,84 @@ jobs:
             "https://api.github.com/repos/$REPO" \
             | python3 -c "import sys,json; print(str(json.load(sys.stdin).get('has_pages')).lower())" 2>/dev/null || echo "")
           echo "has_pages=$has_pages" >> "$GITHUB_OUTPUT"
+
+          build_type=""
+          source_branch=""
           if [ "$has_pages" = "true" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
+            site=$(curl -s \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$REPO/pages")
+            build_type=$(printf '%s' "$site" | python3 -c "import sys,json; print(json.load(sys.stdin).get('build_type') or '')" 2>/dev/null || echo "")
+            source_branch=$(printf '%s' "$site" | python3 -c "import sys,json; print((json.load(sys.stdin).get('source') or {}).get('branch') or '')" 2>/dev/null || echo "")
+          fi
+          echo "build_type=$build_type" >> "$GITHUB_OUTPUT"
+          echo "source_branch=$source_branch" >> "$GITHUB_OUTPUT"
+
+          if [ "$has_pages" != "true" ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "::warning::GitHub Pages is not enabled for this repository, so nothing was published. This is a one-time setup: open $GITHUB_SERVER_URL/$REPO/settings/pages and set Source to 'GitHub Actions', then push again."
+          elif [ "$build_type" != "workflow" ]; then
+            # Pages is set to publish from a branch, so the gh-pages workflow
+            # owns the deployment. Both are deliberately left in place; only
+            # the one that matches the site's configuration acts.
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::GitHub Pages publishes from the '$source_branch' branch, so this workflow stands down and the 'Publish to the gh-pages branch' workflow handles the deployment. To publish through Actions instead, set Settings -> Pages -> Source to 'GitHub Actions' (and allow 'main' on the github-pages environment)."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        if: steps.pagescheck.outputs.enabled == 'true'
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
-
       - name: Summary
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         env:
           ENABLED: ${{ steps.pagescheck.outputs.enabled }}
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          BUILD_TYPE: ${{ steps.pagescheck.outputs.build_type }}
+          SOURCE_BRANCH: ${{ steps.pagescheck.outputs.source_branch }}
         run: |
           {
             echo "## GitHub Pages"
             echo ""
             if [ "$ENABLED" = "true" ]; then
-              echo "- Status: deployed"
-              echo "- URL: ${PAGE_URL:-https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}}"
+              echo "- Status: deploying via GitHub Actions"
             else
-              echo "- Status: **not published**"
+              echo "- Status: **not published by this workflow**"
               echo ""
-              echo "GitHub Pages is switched off for this repository. Turn it on once:"
+              if [ -n "$SOURCE_BRANCH" ]; then
+                echo "GitHub Pages is set to publish from the \`$SOURCE_BRANCH\` branch (build type: \`${BUILD_TYPE:-branch}\`)."
+                echo "The **Publish to the gh-pages branch** workflow owns the deployment - that is the one that publishes the site."
+                echo ""
+                echo "To publish through Actions instead, set"
+                echo "\`Settings -> Pages -> Source\` to **GitHub Actions**, and allow \`main\`"
+                echo "on the \`github-pages\` environment (Settings -> Environments -> github-pages)."
+              else
+                echo "GitHub Pages is not enabled for this repository, so nothing was published."
+                echo ""
+                echo "Turn it on once: open $GITHUB_SERVER_URL/${{ github.repository }}/settings/pages"
+                echo "and set Source to **GitHub Actions**, then push again."
+              fi
               echo ""
-              echo "1. Open $GITHUB_SERVER_URL/${{ github.repository }}/settings/pages"
-              echo "2. Under **Build and deployment → Source**, choose **GitHub Actions**"
-              echo "3. Push again"
-              echo ""
-              echo "The site builds fine either way — only the publishing step was skipped."
+              echo "The site builds fine either way - only the publishing step was skipped."
             fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: needs.build.outputs.pages_enabled == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "- Status: **deployed**"
+            echo "- URL: ${{ steps.deployment.outputs.page_url }}"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -50,23 +50,29 @@ jobs:
         run: |
           set -euo pipefail
 
-          # A dedicated worktree holding the published site, so we never touch
-          # the checkout the build ran in. The branch may not exist yet on the
-          # first run, so fall back to a detached HEAD and create it on push.
+          # Work on the published branch itself rather than on a copy of main.
+          # The published branch has its own history, so building on top of
+          # main and pushing would be rejected as a non-fast-forward. Fetch it
+          # explicitly - a shallow checkout of main does not contain it.
           rm -rf .publish
-          if git worktree add .publish gh-pages 2>/dev/null; then
-            :
+          git init -q .publish
+          cd .publish
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git"
+
+          if git fetch -q --depth 1 origin gh-pages 2>/dev/null; then
+            git checkout -q -B gh-pages FETCH_HEAD
           else
-            git worktree add --detach .publish
+            # First publish: the branch does not exist yet.
+            echo "No gh-pages branch yet - creating it."
+            git checkout -q --orphan gh-pages
+            git rm -rq --cached . 2>/dev/null || true
           fi
 
-          # Empty the branch, then copy the fresh build in. The worktree's
-          # .git file must survive, or git would fall back to the parent
-          # repository and push the wrong content.
-          find .publish -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp -a site/. .publish/
+          # Empty the branch, then copy the fresh build in. The .git directory
+          # must survive, or git would lose track of the repository.
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a ../site/. .
 
-          cd .publish
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
@@ -75,7 +81,6 @@ jobs:
             exit 0
           fi
           git commit -m "Publish site from ${GITHUB_SHA}"
-          # Create the branch on the remote if this is the first publish.
           git push origin HEAD:refs/heads/gh-pages
 
       - name: Summary
