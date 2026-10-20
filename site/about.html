@@ -189,11 +189,13 @@
     <h2>What the graph plots</h2>
     <p>The plotted figures are <b>US dollar holdings only</b>. There is one
     candlestick per transaction &mdash; hollow when the balance rose, solid
-    when it fell &mdash; and the blue line is a 9-transaction moving average
-    of the running balance. Silver is a physical reserve, tracked separately
-    in grams and ounces in the ledger; it is not valued in dollars, and it is
-    not included in the plotted line, the moving average, or the headline
-    totals. Where a candle jumps by more than the recorded deposit or
+    when it fell &mdash; and the blue line is a moving average of the running
+    balance over the <b>ten calendar days</b> ending on each transaction&rsquo;s
+    date. The window is counted in days rather than in transactions, so a busy
+    week and a quiet one weigh the same. Silver is a physical reserve, tracked
+    separately in grams and ounces in the ledger; it is not valued in dollars,
+    and it is not included in the plotted line, the moving average, or the
+    headline totals. Where a candle jumps by more than the recorded deposit or
     withdrawal, its tooltip flags the difference as <b>Unrecorded</b>.</p>
 
     <h2>The rest of the page</h2>

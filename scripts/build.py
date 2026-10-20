@@ -331,7 +331,7 @@ __CSS__
   <div class="legend">
     <span><span class="sw" style="background:#ffffff;border:1.4px solid var(--up)"></span>Balance rose</span>
     <span><span class="sw" style="background:var(--down)"></span>Balance fell</span>
-    <span><span class="sw" style="height:0;border-top:2px solid #1c4fd8;border-radius:0;width:18px"></span>Moving average (&nbsp;9&nbsp;transactions)</span>
+    <span><span class="sw" style="height:0;border-top:2px solid #1c4fd8;border-radius:0;width:18px"></span>Moving average (last&nbsp;10&nbsp;days)</span>
   </div>
   <div class="hr thin"></div>
 
@@ -424,7 +424,7 @@ function buildCandles(){
     const close = t.balance;
     const gap   = +(close - open - (dep - wd)).toFixed(2);
     out.push({
-      n: t.n, label: "#" + t.n, date: t.dateText || "Unknown",
+      n: t.n, label: "#" + t.n, date: t.dateText || "Unknown", iso: t.date || "",
       open, close,
       high: Math.max(open, close), low: Math.min(open, close),
       deposits: dep, withdrawals: wd,
@@ -437,15 +437,53 @@ function buildCandles(){
 
 const CANDLES = buildCandles();
 
-/* window (in transactions) for the blue moving-average line */
-const MA_WINDOW = 9;
+/* Trailing 10-day window for the blue moving-average line.
 
-/* moving average of the running balance, per transaction */
+   The window is measured in calendar days rather than in transactions, so a
+   busy week and a quiet one weigh the same. A burst of five transactions on
+   a single day no longer fills the whole window, and a month with nothing
+   in it no longer pretends to be an average of the last few old entries.
+
+   For each candle the window is the ten calendar days ending on that
+   candle's date -- its own day plus the nine before it -- and the average
+   is taken over the ending balance of every transaction dated inside it.
+
+   One ledger entry carries no date. It borrows the date of the entry before
+   it, so it keeps a place on the timeline and stays in the averages around
+   it.
+
+   Date maths is done in UTC on the YYYY-MM-DD strings, so no local timezone
+   can shift a transaction into or out of a window. */
+const MA_WINDOW_DAYS = 10;
+
+function dayNumber(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+  if (!m) return null;
+  return Date.UTC(+m[1], +m[2]-1, +m[3]) / 86400000;
+}
+
+/* every candle gets a day number; undated ones borrow the previous date */
+const DAYS = CANDLES.map(c => dayNumber(c.iso));
+for (let i = 0; i < DAYS.length; i++){
+  if (DAYS[i] !== null) continue;
+  const before = DAYS.slice(0, i).reverse().find(d => d !== null);
+  const after  = DAYS.slice(i+1).find(d => d !== null);
+  DAYS[i] = before !== undefined ? before
+           : after  !== undefined ? after
+           : null;
+}
+
+/* the moving average, plus how many transactions fed it */
 const MA = CANDLES.map((c,i)=>{
-  const from = Math.max(0, i-MA_WINDOW+1);
+  const d = DAYS[i];
+  if (d === null) return { value: c.close, count: 1 };
   let s = 0, n = 0;
-  for (let k=from;k<=i;k++){ s += CANDLES[k].close; n++; }
-  return s/n;
+  for (let k = 0; k < CANDLES.length; k++){
+    if (DAYS[k] === null) continue;
+    const age = d - DAYS[k];                 /* days before this candle's day */
+    if (age >= 0 && age < MA_WINDOW_DAYS){ s += CANDLES[k].close; n++; }
+  }
+  return { value: n ? s/n : c.close, count: n };
 });
 
 (function(){
@@ -498,13 +536,13 @@ const MA = CANDLES.map((c,i)=>{
     });
 
     /* blue moving-average line following the value of the holdings */
-    const maPath = MA.map((v,i)=>({ i, x: cx(i), v }));
+    const maPath = MA.map((m,i)=>({ i, x: cx(i), v: m.value }));
     const maD = maPath.map((p,i)=>(i?"L":"M")+p.x.toFixed(1)+" "+y(p.v).toFixed(1)).join(" ");
     const lastMa = maPath[maPath.length-1];
     const maLine =
       `<path class="mavg" d="${maD}"/>` +
       `<circle class="mavgdot" cx="${lastMa.x.toFixed(1)}" cy="${y(lastMa.v).toFixed(1)}" r="3"/>` +
-      `<text class="avglbl" x="${lastMa.x.toFixed(1)}" y="${(y(lastMa.v)-9).toFixed(1)}" text-anchor="end">Moving avg ${money(lastMa.v)}</text>`;
+      `<text class="avglbl" x="${lastMa.x.toFixed(1)}" y="${(y(lastMa.v)-9).toFixed(1)}" text-anchor="end">10-day avg ${money(lastMa.v)}</text>`;
 
     svg.innerHTML = grid + labs + body + maLine + xlabels;
 
@@ -514,12 +552,14 @@ const MA = CANDLES.map((c,i)=>{
       el.addEventListener("mouseenter", ()=>{
         const c = CANDLES[+el.dataset.i];
         const up = c.close >= c.open;
+        const ma = MA[+el.dataset.i];
         tip.innerHTML =
           `<div class="tt-t">Transaction ${c.n} &mdash; ${c.date}</div>` +
           `<div class="tt-r"><span>Opened at</span><span>${money(c.open)}</span></div>` +
           `<div class="tt-r"><span>Closed at</span><span>${money(c.close)}</span></div>` +
           `<div class="tt-r"><span>Change</span><span style="color:${up?"var(--up)":"var(--down)"}">${(c.close-c.open>=0?"+":"")+money(c.close-c.open)}</span></div>` +
-          `<div class="tt-r"><span>Moving avg</span><span style="color:#1c4fd8">${money(MA[+el.dataset.i])}</span></div>` +
+          `<div class="tt-r"><span>10-day avg</span><span style="color:#1c4fd8">${money(ma.value)}</span></div>` +
+          `<div class="tt-r"><span>in window</span><span>${ma.count} transaction${ma.count===1?"":"s"}</span></div>` +
           (c.deposits  ? `<div class="tt-r"><span>Deposit</span><span>${money(c.deposits)}</span></div>`  : "") +
           (c.withdrawals?`<div class="tt-r"><span>Withdrawal</span><span>${money(c.withdrawals)}</span></div>`:"") +
           (c.gap ? `<div class="tt-r"><span>Unrecorded</span><span>${money(c.gap)}</span></div>` : "");
@@ -637,11 +677,13 @@ __CSS__
     <h2>What the graph plots</h2>
     <p>The plotted figures are <b>US dollar holdings only</b>. There is one
     candlestick per transaction &mdash; hollow when the balance rose, solid
-    when it fell &mdash; and the blue line is a 9-transaction moving average
-    of the running balance. Silver is a physical reserve, tracked separately
-    in grams and ounces in the ledger; it is not valued in dollars, and it is
-    not included in the plotted line, the moving average, or the headline
-    totals. Where a candle jumps by more than the recorded deposit or
+    when it fell &mdash; and the blue line is a moving average of the running
+    balance over the <b>ten calendar days</b> ending on each transaction&rsquo;s
+    date. The window is counted in days rather than in transactions, so a busy
+    week and a quiet one weigh the same. Silver is a physical reserve, tracked
+    separately in grams and ounces in the ledger; it is not valued in dollars,
+    and it is not included in the plotted line, the moving average, or the
+    headline totals. Where a candle jumps by more than the recorded deposit or
     withdrawal, its tooltip flags the difference as <b>Unrecorded</b>.</p>
 
     <h2>The rest of the page</h2>
@@ -765,7 +807,19 @@ def check(data_path: Path, logo_path: Path):
             ok = ok and cond
 
         expect(len(index_html) > 0, "index.html is non-empty")
-        expect("Moving avg" in index_html, "index.html contains the moving-average label")
+        expect("10-day avg" in index_html, "index.html contains the moving-average label")
+        expect(
+            "Moving average (last&nbsp;10&nbsp;days)" in index_html,
+            "index.html legend says the average covers the last 10 days",
+        )
+        expect(
+            "MA_WINDOW_DAYS = 10" in index_html,
+            "index.html window is 10 calendar days",
+        )
+        expect(
+            "MA_WINDOW = 9" not in index_html and "9&nbsp;transactions" not in index_html,
+            "index.html no longer uses a 9-transaction window",
+        )
         expect(
             f"{n} shown of {n}" in index_html,
             f"index.html shows the transaction count ({n})",
@@ -775,6 +829,10 @@ def check(data_path: Path, logo_path: Path):
         expect("scripts/build.py" in about_html, "about.html names the build script")
         expect('href="index.html"' in about_html, "about.html links back to index.html")
         expect("US dollar holdings" in about_html, "about.html states the dollar-only scope")
+        expect(
+            "ten calendar days" in about_html,
+            "about.html explains the 10-day moving average",
+        )
         expect("Page not found" in nf_html, "404.html exists and says Page not found")
         expect('href="index.html"' in nf_html, "404.html links back to index.html")
         expect(
