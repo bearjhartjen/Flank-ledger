@@ -686,6 +686,17 @@
 
 ## Transaction 64
 
+- **Withdraw of:** $0.00
+- **Deposit of:** $11.92
+- **New balance:** $5,574.06
+- **Silver holdings:** 200g, 2.6oz
+- **Notes:** This deposit was coins on hand: $0.92 in coins plus $11.00 in additional coins. Approved by Bear J. Hartjen.
+- **Transaction was made on:** 10-20-2026
+
+---
+
+## Transaction 65
+
 - **Withdraw of:** $
 - **Deposit of:** $
 - **New balance:** $
