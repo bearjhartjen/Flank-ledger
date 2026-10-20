@@ -738,6 +738,12 @@ def build(data_path: Path, logo_path: Path, out_dir: Path):
     shutil.copyfile(logo_path, out_dir / "favicon.png")
     print("wrote", out_dir / "favicon.png", f"{(out_dir / 'favicon.png').stat().st_size // 1024} KiB")
 
+    # An empty .nojekyll tells GitHub Pages to publish the files as-is instead
+    # of running them through Jekyll, which would drop anything it treats as a
+    # special file.
+    (out_dir / ".nojekyll").write_text("", encoding="utf-8")
+    print("wrote", out_dir / ".nojekyll")
+
     return filled
 
 
