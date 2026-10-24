@@ -64,7 +64,7 @@
   .avgline{stroke:#1c4fd8;stroke-width:1.6;stroke-dasharray:7 5}
   .mavg{fill:none;stroke:#1c4fd8;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
   .mavgdot{fill:#1c4fd8}
-  .avglbl{font:11px "Helvetica Neue",Arial,sans-serif;fill:#1c4fd8;font-weight:600}
+  .avglbl{font:11px "Helvetica Neue",Arial,sans-serif;fill:#1c4fd8;font-weight:600;paint-order:stroke;stroke:#ffffff;stroke-width:3px}
   .axlbl{font:11px "Helvetica Neue",Arial,sans-serif;fill:var(--muted)}
   .axlbl.b{font-weight:600;fill:var(--ink)}
   .tooltip{
@@ -360,7 +360,7 @@ const MA = CANDLES.map((c,i)=>{
   const tip = document.getElementById("tip");
   if (!CANDLES.length){ svg.innerHTML = '<text x="10" y="30" class="axlbl">No data</text>'; return; }
 
-  const H = 330, PL = 74, PR = 18, PT = 14, PB = 34;
+  const H = 330, PL = 74, PR = 18, PT = 26, PB = 34;
   let lo = Infinity, hi = -Infinity;
   CANDLES.forEach(c=>{ lo = Math.min(lo,c.low); hi = Math.max(hi,c.high); });
   const pad = (hi-lo)*0.08 || 10;
@@ -411,7 +411,7 @@ const MA = CANDLES.map((c,i)=>{
     const maLine =
       `<path class="mavg" d="${maD}"/>` +
       `<circle class="mavgdot" cx="${lastMa.x.toFixed(1)}" cy="${y(lastMa.v).toFixed(1)}" r="3"/>` +
-      `<text class="avglbl" x="${lastMa.x.toFixed(1)}" y="${(y(lastMa.v)-9).toFixed(1)}" text-anchor="end">10-day avg ${money(lastMa.v)}</text>`;
+      `<text class="avglbl" x="${(lastMa.x-8).toFixed(1)}" y="${(y(lastMa.v)-12).toFixed(1)}" text-anchor="end">10-day avg ${money(lastMa.v)}</text>`;
 
     svg.innerHTML = grid + labs + body + maLine + xlabels;
 
