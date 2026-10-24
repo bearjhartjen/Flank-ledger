@@ -262,15 +262,7 @@ CSS = r'''  :root{
   .empty-msg{color:var(--muted);text-align:center;padding:26px;font-style:italic}
 
   /* ---------- lock ---------- */
-  .tablewrap{position:relative}
-  table.locked{filter:blur(8px)}
-  .tablewrap.locked table{pointer-events:none;user-select:none}
-  .lockveil{position:absolute;inset:0;display:none;align-items:flex-start;justify-content:center;padding-top:64px}
-  .tablewrap.locked .lockveil{display:flex}
-  .lockcard{
-    background:#fff;border:1px solid var(--ink);box-shadow:2px 2px 0 rgba(0,0,0,.14);
-    padding:12px 20px;font:13px/1.5 "Helvetica Neue",Arial,sans-serif;color:var(--ink2);text-align:center;
-  }
+  table.locked td.notes{filter:blur(5px);user-select:none;pointer-events:none}
   .lockbox{margin-top:20px;text-align:center;font:13px "Helvetica Neue",Arial,sans-serif;color:var(--muted)}
   .lockbox input{
     font:14px Georgia,serif;color:var(--ink);background:#fff;text-align:center;letter-spacing:3px;
@@ -384,8 +376,7 @@ __CSS__
     <span class="count" id="count">__COUNT__ shown of __COUNT__</span>
   </div>
 
-  <div class="tablewrap locked" id="tablewrap">
-  <table>
+  <table id="ledger" class="locked">
     <thead>
        <tr>
          <th class="n">#</th>
@@ -399,11 +390,9 @@ __CSS__
     </thead>
     <tbody id="rows"></tbody>
   </table>
-  <div class="lockveil"><div class="lockcard">Transactions locked.<br>Scroll down and enter the code to reveal them.</div></div>
-  </div>
 
   <div class="lockbox" id="lockbox">
-    <div id="lockprompt">This ledger is locked. Enter the code to reveal the transactions.</div>
+    <div id="lockprompt">The transaction notes are locked. Enter the code to reveal them.</div>
     <input type="password" id="code" inputmode="numeric" autocomplete="off" maxlength="16" placeholder="•••••">
     <button class="btn" id="lockbtn">Unlock</button>
     <div class="lockmsg" id="lockmsg"></div>
@@ -788,18 +777,16 @@ render();
    this browser tab only (sessionStorage): a fresh visit locks again.
    This keeps honest visitors out, not a determined reader of the source. */
 const CODE_HASH = "b6568e6a00d2bd0444c92d1de175744c3e55b539f116538f83e96aa4ba5aab58";
-const tablewrap = document.getElementById("tablewrap");
-const lockTable = tablewrap.querySelector("table");
+const lockTable = document.getElementById("ledger");
 const lockprompt = document.getElementById("lockprompt");
 const codeInput = document.getElementById("code");
 const lockbtn = document.getElementById("lockbtn");
 const lockmsg = document.getElementById("lockmsg");
 
 function setLocked(locked){
-  tablewrap.classList.toggle("locked", locked);
   lockTable.classList.toggle("locked", locked);
   lockprompt.textContent = locked
-    ? "This ledger is locked. Enter the code to reveal the transactions."
+    ? "The transaction notes are locked. Enter the code to reveal them."
     : "Unlocked for this visit.";
   lockbtn.textContent = locked ? "Unlock" : "Lock";
   codeInput.value = "";
@@ -912,9 +899,9 @@ __CSS__
     as-is, for example from GitHub Pages. Only the live silver spot flag needs
     a connection; without one it shows the last price seen.</p>
 
-    <h2>Why the table is blurred</h2>
-    <p>The transaction table loads blurred because the notes name real people
-    and amounts. Scroll to the bottom of the ledger page and enter the code
+    <h2>Why the notes are blurred</h2>
+    <p>Only the Notes column loads blurred, because it names real people.
+    Scroll to the bottom of the ledger page and enter the code
     to reveal it; it stays revealed for that browser tab only, and a fresh
     visit locks it again. This keeps casual visitors out, not someone reading
     the page source &mdash; the ledger data is still embedded in the page.</p>
@@ -1056,7 +1043,7 @@ def check(data_path: Path, logo_path: Path):
         expect("api.gold-api.com/price/XAG" in index_html, "index.html fetches the live XAG feed")
         expect("HOLDINGS_OZT" in index_html, "index.html converts holdings to troy oz")
         expect('"leader"' in index_html, "index.html draws a leader line to the tooltip")
-        expect("lockveil" in index_html, "index.html has the lock veil over the table")
+        expect("table.locked td.notes" in index_html, "index.html blurs only the notes column when locked")
         expect("flankUnlocked" in index_html, "index.html keeps the unlock to the tab session")
         expect("b6568e6a00d2bd0444c92d1de175744c3e55b539f116538f83e96aa4ba5aab58" in index_html, "index.html stores the code as a hash")
         expect("73774" not in index_html, "index.html never contains the code in plaintext")
