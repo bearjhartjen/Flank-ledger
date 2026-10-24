@@ -736,3 +736,14 @@
 - **Silver holdings:** 200g, 2.6oz
 - **Notes:** This withdrawal was from Depop for clothes/accessories for Delaynie Smith ($21.80 + $8.58 + $5.95). Approved by Bear J. Hartjen.
 - **Transaction was made on:** 10-24-2026
+
+---
+
+## Transaction 69
+
+- **Withdraw of:** $31.32
+- **Deposit of:** $0.00
+- **New balance:** $5,886.41
+- **Silver holdings:** 200g, 2.6oz
+- **Notes:** This withdrawal was for Canva Flamingo and Cactus business cards. Approved by Bear J. Hartjen.
+- **Transaction was made on:** 10-24-2026
