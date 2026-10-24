@@ -697,6 +697,39 @@
 
 ## Transaction 65
 
+- **Withdraw of:** $0.00
+- **Deposit of:** $450.00
+- **New balance:** $6,024.06
+- **Silver holdings:** 200g, 2.6oz
+- **Notes:** Monthly SSI portion payment provided by Joshua Hartjen (father).
+- **Transaction was made on:** 10-21-2026
+
+---
+
+## Transaction 66
+
+- **Withdraw of:** $69.44
+- **Deposit of:** $0.00
+- **New balance:** $5,954.62
+- **Silver holdings:** 200g, 2.6oz
+- **Notes:** This withdrawal was by PCBWay for the Lamoka1/2. Approved by Bear J. Hartjen.
+- **Transaction was made on:** 10-23-2026
+
+---
+
+## Transaction 67
+
+- **Withdraw of:** $0.56
+- **Deposit of:** $0.00
+- **New balance:** $5,954.06
+- **Silver holdings:** 200g, 2.6oz
+- **Notes:** This withdrawal was by PCBWay for the Lamoka1/2 (additional fee). Approved by Bear J. Hartjen.
+- **Transaction was made on:** 10-23-2026
+
+---
+
+## Transaction 68
+
 - **Withdraw of:** $
 - **Deposit of:** $
 - **New balance:** $
