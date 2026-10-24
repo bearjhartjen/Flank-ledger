@@ -170,6 +170,16 @@ CSS = r'''  :root{
   .headline .v{font-size:40px;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:5px}
   .headline .v.gold{color:var(--gold)}
   .headline .n{font-size:12.5px;color:var(--faint);font-family:"Helvetica Neue",Arial,sans-serif}
+  .spotflag{
+    text-align:right;min-height:16px;
+    font:11px "Helvetica Neue",Arial,sans-serif;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--faint);
+  }
+  .spotflag .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#1c6b3a;margin-right:6px;vertical-align:1px}
+  .spotflag.off .dot{background:var(--down)}
+  .spotflag.old .dot{background:var(--faint)}
+  .silverval{font-size:12px;color:var(--faint);font-family:"Helvetica Neue",Arial,sans-serif;margin-top:4px}
+  .silverval b{color:var(--muted);font-weight:600}
 
   .stats{
     text-align:center;color:var(--muted);font-size:13.5px;padding:0 0 20px;
@@ -294,6 +304,8 @@ __CSS__
 <body>
 <div class="page">
 
+  <div class="spotflag" id="spotflag" title="Live silver spot (XAG/USD per troy oz)"><span class="dot"></span><span id="spotflag-txt">Ag spot &mdash;</span></div>
+
   <div class="masthead">
     <img src="__LOGO__" alt="Flamingo and Cactus">
     <h1>The Flank Ledger</h1>
@@ -311,6 +323,7 @@ __CSS__
       <div class="k">Silver Holdings</div>
       <div class="v gold" id="h-silver">&mdash;</div>
       <div class="n">physical reserve</div>
+      <div class="silverval" id="h-silver-val"></div>
     </div>
   </div>
 
@@ -322,8 +335,9 @@ __CSS__
     <div class="tooltip" id="tip"></div>
   </div>
   <p class="note"><b>Note:</b> this graph tracks <b>US dollar holdings</b> only. The silver holdings
-  (<span id="note-silver">200g, 2.6oz</span>) are physical assets held separately &mdash; they are not
-  valued in dollars, and are <b>not</b> included in the plotted line, the moving average, or the totals above.</p>
+  (<span id="note-silver">200g, 2.6oz</span>) are a physical reserve held separately &mdash; not
+  included in the plotted line, the moving average, or the totals above. An approximate
+  dollar value at the live spot price is shown under Silver Holdings for reference.</p>
   <p class="caption">
     One candle per transaction &mdash; hollow for a transaction that left the balance higher, solid for one that left it lower.
     Hover a candle for detail.
@@ -364,11 +378,6 @@ __CSS__
     </thead>
     <tbody id="rows"></tbody>
   </table>
-
-  <footer>
-    Generated from <code>The Flank.md</code> by <code>scripts/build.py</code> &mdash; a read-only site.<br>
-    Edit the Markdown and re-run the build to refresh.
-  </footer>
 </div>
 
 <script>
@@ -404,6 +413,89 @@ document.getElementById("stats").innerHTML =
   (dated.length ? dated[0].dateText + " &ndash; " + dated[dated.length-1].dateText : "undated") +
   ` &nbsp;&middot;&nbsp; deposits <b>${money(totals.deposits)}</b>` +
   ` &nbsp;&middot;&nbsp; withdrawals <b>${money(totals.withdrawals)}</b>`;
+
+/* ------------------------------------------------------------------ silver spot
+   Live XAG/USD (per troy oz) from the free, keyless, CORS-open
+   api.gold-api.com feed. The site itself stays fully static: the browser
+   fetches the price on load and refreshes it every 60 s (plus whenever the
+   tab becomes visible again). Offline or blocked, the flag falls back to
+   the last price kept in localStorage and says so.
+   Holdings strings look like "200g, 2.6oz": grams convert at 31.1034768 g
+   per troy oz, and bare "oz" is read as troy oz, the precious-metal unit. */
+const G_PER_OZT = 31.1034768;
+const SPOT_URL = "https://api.gold-api.com/price/XAG";
+const SPOT_EVERY_MS = 60000;
+
+function silverOzt(s){
+  if (!s) return 0;
+  let ozt = 0, m;
+  const grams = s.matchAll(/([\d,]+(?:\.\d+)?)\s*g\b/gi);
+  for (m of grams) ozt += parseFloat(m[1].replace(/,/g,"")) / G_PER_OZT;
+  const ounces = s.matchAll(/([\d,]+(?:\.\d+)?)\s*oz\b/gi);
+  for (m of ounces) ozt += parseFloat(m[1].replace(/,/g,""));
+  return ozt;
+}
+const HOLDINGS_OZT = silverOzt(totals.silver);
+
+function renderSpot(price, mode, atMs){
+  const flag = document.getElementById("spotflag");
+  const txt  = document.getElementById("spotflag-txt");
+  const val  = document.getElementById("h-silver-val");
+  if (price === null || !(price > 0)){
+    flag.className = "spotflag off";
+    txt.textContent = "Ag spot unavailable";
+    if (val) val.textContent = "";
+    return;
+  }
+  const p = money(price) + "/ozt";
+  if (mode === "live"){
+    flag.className = "spotflag";
+    txt.textContent = "Ag " + p + " \u00b7 live";
+  } else {
+    flag.className = "spotflag " + (mode === "cached" ? "old" : "off");
+    const age = atMs ? Math.max(0, Date.now() - atMs) : null;
+    const when = age === null ? "" : age < 90e3 ? " \u00b7 just now"
+      : age < 3600e3 ? " \u00b7 " + Math.round(age/60e3) + "m ago"
+      : " \u00b7 " + Math.round(age/3600e3) + "h ago";
+    txt.textContent = "Ag " + p + (mode === "cached" ? " \u00b7 last seen" + when : when);
+  }
+  if (val) val.innerHTML = HOLDINGS_OZT > 0
+    ? "&#8776; <b>" + money(price * HOLDINGS_OZT) + "</b> at spot " + p
+    : "";
+}
+
+async function refreshSpot(){
+  try {
+    const ctl = new AbortController();
+    const to = setTimeout(()=>ctl.abort(), 10000);
+    const res = await fetch(SPOT_URL, { cache: "no-store", signal: ctl.signal });
+    clearTimeout(to);
+    if (!res.ok) throw new Error("spot HTTP " + res.status);
+    const j = await res.json();
+    const price = Number(j.price);
+    if (!isFinite(price) || price <= 0) throw new Error("bad spot payload");
+    const atMs = Date.parse(j.updatedAt) || Date.now();
+    try { localStorage.setItem("flankAgSpot", JSON.stringify({ price, atMs })); } catch(e){}
+    renderSpot(price, "live", atMs);
+  } catch(e){
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem("flankAgSpot") || "null"); } catch(e2){}
+    if (cached && isFinite(cached.price) && cached.price > 0)
+      renderSpot(cached.price, "cached", cached.atMs || 0);
+    else
+      renderSpot(null);
+  }
+}
+
+(function(){
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem("flankAgSpot") || "null"); } catch(e){}
+  if (cached && isFinite(cached.price) && cached.price > 0)
+    renderSpot(cached.price, "cached", cached.atMs || 0);
+  refreshSpot();
+  setInterval(refreshSpot, SPOT_EVERY_MS);
+  document.addEventListener("visibilitychange", ()=>{ if (!document.hidden) refreshSpot(); });
+})();
 
 /* ------------------------------------------------------------------ candles */
 function buildCandles(){
@@ -681,18 +773,27 @@ __CSS__
     balance over the <b>ten calendar days</b> ending on each transaction&rsquo;s
     date. The window is counted in days rather than in transactions, so a busy
     week and a quiet one weigh the same. Silver is a physical reserve, tracked
-    separately in grams and ounces in the ledger; it is not valued in dollars,
-    and it is not included in the plotted line, the moving average, or the
-    headline totals. Where a candle jumps by more than the recorded deposit or
+    separately in grams and ounces in the ledger; it is not included in the
+    plotted line, the moving average, or the headline totals. The ledger page
+    shows an approximate dollar value for it under Silver Holdings, figured
+    at the live spot price (troy ounces at XAG/USD) for reference. Where a candle jumps by more than the recorded deposit or
     withdrawal, its tooltip flags the difference as <b>Unrecorded</b>.</p>
+
+    <h2>Where the live silver price comes from</h2>
+    <p>The silver spot flag at the top of the ledger page and the approximate
+    value under Silver Holdings are fetched live in the browser from the free
+    public feed at <code>api.gold-api.com</code> (no key, XAG/USD per troy
+    ounce), refreshed about once a minute. If the feed cannot be reached, the
+    page shows the last price it saw and says so.</p>
 
     <h2>The rest of the page</h2>
     <p>Beneath the chart is the full ledger as a table, newest first. The
     search box filters by date, amount, or note text, and the dropdown
     narrows the list to deposits, withdrawals, or a single year. Everything
     on the site is plain static HTML &mdash; the logo and the ledger data are
-    embedded directly in the page, so it works offline and can be published
-    as-is, for example from GitHub Pages.</p>
+    embedded directly in the page, so the ledger itself works offline and can be published
+    as-is, for example from GitHub Pages. Only the live silver spot flag needs
+    a connection; without one it shows the last price seen.</p>
   </div>
 
   <footer>
@@ -826,6 +927,10 @@ def check(data_path: Path, logo_path: Path):
         )
         expect("Unrecorded" in index_html, "index.html keeps the Unrecorded gap flagging")
         expect("9</option>" not in index_html and "2026" in index_html, "index.html keeps the filter dropdown")
+        expect("spotflag" in index_html, "index.html has the silver spot flag")
+        expect("h-silver-val" in index_html, "index.html has the holdings value line")
+        expect("api.gold-api.com/price/XAG" in index_html, "index.html fetches the live XAG feed")
+        expect("HOLDINGS_OZT" in index_html, "index.html converts holdings to troy oz")
         expect("scripts/build.py" in about_html, "about.html names the build script")
         expect('href="index.html"' in about_html, "about.html links back to index.html")
         expect("US dollar holdings" in about_html, "about.html states the dollar-only scope")

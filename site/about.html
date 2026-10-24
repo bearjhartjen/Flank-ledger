@@ -47,6 +47,16 @@
   .headline .v{font-size:40px;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:5px}
   .headline .v.gold{color:var(--gold)}
   .headline .n{font-size:12.5px;color:var(--faint);font-family:"Helvetica Neue",Arial,sans-serif}
+  .spotflag{
+    text-align:right;min-height:16px;
+    font:11px "Helvetica Neue",Arial,sans-serif;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--faint);
+  }
+  .spotflag .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#1c6b3a;margin-right:6px;vertical-align:1px}
+  .spotflag.off .dot{background:var(--down)}
+  .spotflag.old .dot{background:var(--faint)}
+  .silverval{font-size:12px;color:var(--faint);font-family:"Helvetica Neue",Arial,sans-serif;margin-top:4px}
+  .silverval b{color:var(--muted);font-weight:600}
 
   .stats{
     text-align:center;color:var(--muted);font-size:13.5px;padding:0 0 20px;
@@ -193,18 +203,27 @@
     balance over the <b>ten calendar days</b> ending on each transaction&rsquo;s
     date. The window is counted in days rather than in transactions, so a busy
     week and a quiet one weigh the same. Silver is a physical reserve, tracked
-    separately in grams and ounces in the ledger; it is not valued in dollars,
-    and it is not included in the plotted line, the moving average, or the
-    headline totals. Where a candle jumps by more than the recorded deposit or
+    separately in grams and ounces in the ledger; it is not included in the
+    plotted line, the moving average, or the headline totals. The ledger page
+    shows an approximate dollar value for it under Silver Holdings, figured
+    at the live spot price (troy ounces at XAG/USD) for reference. Where a candle jumps by more than the recorded deposit or
     withdrawal, its tooltip flags the difference as <b>Unrecorded</b>.</p>
+
+    <h2>Where the live silver price comes from</h2>
+    <p>The silver spot flag at the top of the ledger page and the approximate
+    value under Silver Holdings are fetched live in the browser from the free
+    public feed at <code>api.gold-api.com</code> (no key, XAG/USD per troy
+    ounce), refreshed about once a minute. If the feed cannot be reached, the
+    page shows the last price it saw and says so.</p>
 
     <h2>The rest of the page</h2>
     <p>Beneath the chart is the full ledger as a table, newest first. The
     search box filters by date, amount, or note text, and the dropdown
     narrows the list to deposits, withdrawals, or a single year. Everything
     on the site is plain static HTML &mdash; the logo and the ledger data are
-    embedded directly in the page, so it works offline and can be published
-    as-is, for example from GitHub Pages.</p>
+    embedded directly in the page, so the ledger itself works offline and can be published
+    as-is, for example from GitHub Pages. Only the live silver spot flag needs
+    a connection; without one it shows the last price seen.</p>
   </div>
 
   <footer>
