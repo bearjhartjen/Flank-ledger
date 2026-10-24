@@ -75,6 +75,7 @@
   .mavg{fill:none;stroke:#1c4fd8;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
   .mavgdot{fill:#1c4fd8}
   .avglbl{font:11px "Helvetica Neue",Arial,sans-serif;fill:#1c4fd8;font-weight:600;paint-order:stroke;stroke:#ffffff;stroke-width:3px}
+  .leader{stroke:var(--ink);stroke-width:1}
   .axlbl{font:11px "Helvetica Neue",Arial,sans-serif;fill:var(--muted)}
   .axlbl.b{font-weight:600;fill:var(--ink)}
   .tooltip{
@@ -526,20 +527,44 @@ const MA = CANDLES.map((c,i)=>{
           (c.gap ? `<div class="tt-r"><span>Unrecorded</span><span>${money(c.gap)}</span></div>` : "");
         const svgRect = svg.getBoundingClientRect();
         const wrapRect = svg.parentElement.getBoundingClientRect();
-        const px = svgRect.left - wrapRect.left + cx(+el.dataset.i);
+        const i = +el.dataset.i;
+        const px = svgRect.left - wrapRect.left + cx(i);
         const py = svgRect.top  - wrapRect.top  + y(c.high);
         tip.style.opacity = "1";
-        const tw = tip.offsetWidth;
-        tip.style.left = Math.max(0, Math.min(wrapRect.width - tw, px - tw/2)) + "px";
-        tip.style.top  = Math.max(0, py - tip.offsetHeight - 10) + "px";
+        /* park the box on the roomier side of the candle so it never sits
+           on top of it, then draw a leader line from the candle to the box */
+        const tw = tip.offsetWidth, th = tip.offsetHeight;
+        const wrapW = wrapRect.width;
+        let left = (cx(i) > W/2) ? px - tw - 16 : px + 16;
+        left = Math.max(0, Math.min(wrapW - tw, left));
+        const below = py < th + 28;
+        const top = Math.max(0, below ? py + 20 : py - th - 14);
+        tip.style.left = left + "px";
+        tip.style.top  = top + "px";
+        let leader = svg.querySelector("#leader");
+        if (!leader){
+          leader = document.createElementNS("http://www.w3.org/2000/svg","line");
+          leader.setAttribute("id","leader");
+          leader.setAttribute("class","leader");
+          svg.appendChild(leader);
+        }
+        const ox = svgRect.left - wrapRect.left, oy = svgRect.top - wrapRect.top;
+        leader.setAttribute("x1", cx(i).toFixed(1));
+        leader.setAttribute("y1", y(c.high).toFixed(1));
+        leader.setAttribute("x2", (left + tw/2 - ox).toFixed(1));
+        leader.setAttribute("y2", ((below ? top : top + th) - oy).toFixed(1));
       });
     });
-    svg.addEventListener("mouseleave", ()=>{ tip.style.opacity = "0"; });
+    svg.addEventListener("mouseleave", ()=>{
+      tip.style.opacity = "0";
+      const leader = svg.querySelector("#leader");
+      if (leader) leader.remove();
+    });
   }
 
   draw();
   let t;
-  window.addEventListener("resize", ()=>{ clearTimeout(t); t = setTimeout(draw,120); });
+  window.addEventListener("resize", ()=>{ tip.style.opacity = "0"; clearTimeout(t); t = setTimeout(draw,120); });
 })();
 
 /* ------------------------------------------------------------------ table */
