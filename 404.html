@@ -139,15 +139,7 @@
   .empty-msg{color:var(--muted);text-align:center;padding:26px;font-style:italic}
 
   /* ---------- lock ---------- */
-  .tablewrap{position:relative}
-  table.locked{filter:blur(8px)}
-  .tablewrap.locked table{pointer-events:none;user-select:none}
-  .lockveil{position:absolute;inset:0;display:none;align-items:flex-start;justify-content:center;padding-top:64px}
-  .tablewrap.locked .lockveil{display:flex}
-  .lockcard{
-    background:#fff;border:1px solid var(--ink);box-shadow:2px 2px 0 rgba(0,0,0,.14);
-    padding:12px 20px;font:13px/1.5 "Helvetica Neue",Arial,sans-serif;color:var(--ink2);text-align:center;
-  }
+  table.locked td.notes{filter:blur(5px);user-select:none;pointer-events:none}
   .lockbox{margin-top:20px;text-align:center;font:13px "Helvetica Neue",Arial,sans-serif;color:var(--muted)}
   .lockbox input{
     font:14px Georgia,serif;color:var(--ink);background:#fff;text-align:center;letter-spacing:3px;
