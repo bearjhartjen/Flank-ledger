@@ -261,6 +261,25 @@ CSS = r'''  :root{
   .bal{font-weight:600}
   .empty-msg{color:var(--muted);text-align:center;padding:26px;font-style:italic}
 
+  /* ---------- lock ---------- */
+  .tablewrap{position:relative}
+  table.locked{filter:blur(8px)}
+  .tablewrap.locked table{pointer-events:none;user-select:none}
+  .lockveil{position:absolute;inset:0;display:none;align-items:flex-start;justify-content:center;padding-top:64px}
+  .tablewrap.locked .lockveil{display:flex}
+  .lockcard{
+    background:#fff;border:1px solid var(--ink);box-shadow:2px 2px 0 rgba(0,0,0,.14);
+    padding:12px 20px;font:13px/1.5 "Helvetica Neue",Arial,sans-serif;color:var(--ink2);text-align:center;
+  }
+  .lockbox{margin-top:20px;text-align:center;font:13px "Helvetica Neue",Arial,sans-serif;color:var(--muted)}
+  .lockbox input{
+    font:14px Georgia,serif;color:var(--ink);background:#fff;text-align:center;letter-spacing:3px;
+    border:1px solid var(--rule);border-radius:2px;padding:7px 10px;width:130px;margin:8px 0 0;
+  }
+  .lockbox input:focus{outline:2px solid var(--ink);outline-offset:-1px}
+  .lockbox .btn{margin-left:8px}
+  .lockmsg{min-height:18px;font-size:12.5px;color:var(--down);margin-top:6px}
+
   /* ---------- prose pages (about / 404) ---------- */
   .prose{max-width:760px;margin:8px auto 0;font-size:15px;line-height:1.65}
   .prose h2{
@@ -365,6 +384,7 @@ __CSS__
     <span class="count" id="count">__COUNT__ shown of __COUNT__</span>
   </div>
 
+  <div class="tablewrap locked" id="tablewrap">
   <table>
     <thead>
        <tr>
@@ -379,6 +399,15 @@ __CSS__
     </thead>
     <tbody id="rows"></tbody>
   </table>
+  <div class="lockveil"><div class="lockcard">Transactions locked.<br>Scroll down and enter the code to reveal them.</div></div>
+  </div>
+
+  <div class="lockbox" id="lockbox">
+    <div id="lockprompt">This ledger is locked. Enter the code to reveal the transactions.</div>
+    <input type="password" id="code" inputmode="numeric" autocomplete="off" maxlength="16" placeholder="•••••">
+    <button class="btn" id="lockbtn">Unlock</button>
+    <div class="lockmsg" id="lockmsg"></div>
+  </div>
 </div>
 
 <script>
@@ -751,6 +780,69 @@ q.addEventListener("input", render);
 filter.addEventListener("change", render);
 document.getElementById("print").addEventListener("click", ()=>window.print());
 render();
+
+/* ------------------------------------------------------------------ lock
+   The transaction table loads blurred. The code typed at the bottom of the
+   page is SHA-256 hashed in the browser and compared against a stored hash,
+   so the code itself never appears in the page source. Unlock lasts for
+   this browser tab only (sessionStorage): a fresh visit locks again.
+   This keeps honest visitors out, not a determined reader of the source. */
+const CODE_HASH = "b6568e6a00d2bd0444c92d1de175744c3e55b539f116538f83e96aa4ba5aab58";
+const tablewrap = document.getElementById("tablewrap");
+const lockTable = tablewrap.querySelector("table");
+const lockprompt = document.getElementById("lockprompt");
+const codeInput = document.getElementById("code");
+const lockbtn = document.getElementById("lockbtn");
+const lockmsg = document.getElementById("lockmsg");
+
+function setLocked(locked){
+  tablewrap.classList.toggle("locked", locked);
+  lockTable.classList.toggle("locked", locked);
+  lockprompt.textContent = locked
+    ? "This ledger is locked. Enter the code to reveal the transactions."
+    : "Unlocked for this visit.";
+  lockbtn.textContent = locked ? "Unlock" : "Lock";
+  codeInput.value = "";
+  lockmsg.textContent = "";
+  codeInput.style.display = locked ? "" : "none";
+}
+
+async function sha256hex(s){
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+async function tryUnlock(){
+  lockmsg.textContent = "";
+  if (!window.crypto || !crypto.subtle){
+    lockmsg.textContent = "This browser cannot check the code.";
+    return;
+  }
+  let hex = "";
+  try { hex = await sha256hex(codeInput.value.trim()); }
+  catch(e){ lockmsg.textContent = "This browser cannot check the code."; return; }
+  if (hex === CODE_HASH){
+    try { sessionStorage.setItem("flankUnlocked","1"); } catch(e){}
+    setLocked(false);
+  } else {
+    lockmsg.textContent = "Wrong code.";
+  }
+}
+
+lockbtn.addEventListener("click", ()=>{
+  if (lockTable.classList.contains("locked")) tryUnlock();
+  else {
+    try { sessionStorage.removeItem("flankUnlocked"); } catch(e){}
+    setLocked(true);
+  }
+});
+codeInput.addEventListener("keydown", e=>{ if (e.key === "Enter") tryUnlock(); });
+
+(function(){
+  let open = false;
+  try { open = sessionStorage.getItem("flankUnlocked") === "1"; } catch(e){}
+  setLocked(!open);
+})();
 </script>
 </body>
 </html>
@@ -819,6 +911,13 @@ __CSS__
     embedded directly in the page, so the ledger itself works offline and can be published
     as-is, for example from GitHub Pages. Only the live silver spot flag needs
     a connection; without one it shows the last price seen.</p>
+
+    <h2>Why the table is blurred</h2>
+    <p>The transaction table loads blurred because the notes name real people
+    and amounts. Scroll to the bottom of the ledger page and enter the code
+    to reveal it; it stays revealed for that browser tab only, and a fresh
+    visit locks it again. This keeps casual visitors out, not someone reading
+    the page source &mdash; the ledger data is still embedded in the page.</p>
   </div>
 
   <footer>
@@ -957,6 +1056,10 @@ def check(data_path: Path, logo_path: Path):
         expect("api.gold-api.com/price/XAG" in index_html, "index.html fetches the live XAG feed")
         expect("HOLDINGS_OZT" in index_html, "index.html converts holdings to troy oz")
         expect('"leader"' in index_html, "index.html draws a leader line to the tooltip")
+        expect("lockveil" in index_html, "index.html has the lock veil over the table")
+        expect("flankUnlocked" in index_html, "index.html keeps the unlock to the tab session")
+        expect("b6568e6a00d2bd0444c92d1de175744c3e55b539f116538f83e96aa4ba5aab58" in index_html, "index.html stores the code as a hash")
+        expect("73774" not in index_html, "index.html never contains the code in plaintext")
         expect("scripts/build.py" in about_html, "about.html names the build script")
         expect('href="index.html"' in about_html, "about.html links back to index.html")
         expect("US dollar holdings" in about_html, "about.html states the dollar-only scope")
